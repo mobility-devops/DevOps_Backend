@@ -71,6 +71,12 @@ kim.autoever.taxi
 - `vehicles.plate_number` UNIQUE.
 - `rides.driver_id`는 수락 전 NULL 허용.
 
+### 기사·차량 (확정)
+- 기사 정보(`drivers`)는 DRIVER 사용자가 처음 사용할 때 `OFFLINE`으로 자동 생성한다(`DriverService.getOrCreate`).
+- 차량은 기사 1명당 1대. 경로는 `/api/v1/drivers/me/vehicle`(GET/POST/PUT/DELETE), 상태 변경은 `PUT /api/v1/drivers/me/availability`.
+- 기사 전용 API는 `loginUser.requireRole(UserRole.DRIVER)`로 막는다.
+- 호출 수락 구현 시 운행 중인 기사는 OFFLINE으로 바꿀 수 없게 막는다(`active_assignments` 도입 후).
+
 ### 사용자 식별 (확정)
 인증(JWT)은 제외하고 요청 헤더 `X-User-Id`로 사용자를 식별한다. 요청 본문의 사용자 ID는 신뢰하지 않는다.
 - `users`(id, name, phone, role = `PASSENGER` / `DRIVER`), 가입은 `POST /api/v1/users`.
