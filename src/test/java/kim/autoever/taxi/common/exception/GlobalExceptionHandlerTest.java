@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.dao.DataIntegrityViolationException;
 
 class GlobalExceptionHandlerTest {
 
@@ -106,5 +107,17 @@ class GlobalExceptionHandlerTest {
         String error() {
             throw new IllegalStateException("secret internal detail");
         }
+
+        @GetMapping("/test/integrity")
+        String integrity() {
+            throw new DataIntegrityViolationException("duplicate entry");
+        }
+    }
+
+    @Test
+    void 데이터_무결성_위반은_409를_반환한다() throws Exception {
+        mockMvc.perform(get("/test/integrity"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"));
     }
 }
