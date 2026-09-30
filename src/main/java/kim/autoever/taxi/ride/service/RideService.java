@@ -85,6 +85,24 @@ public class RideService {
         return flushAndRespond(ride);
     }
 
+    /**
+     * 호출한 승객이 탑승 전까지 호출을 취소한다. 승객·기사의 활성 정보를 같은 트랜잭션에서 해제해
+     * 승객은 다시 호출하고 배정됐던 기사는 다른 호출을 수락할 수 있다.
+     */
+    @Transactional
+    public RideStatusResponse cancel(LoginUser loginUser, Long rideId) {
+        loginUser.requireRole(UserRole.PASSENGER);
+        Ride ride = rideRepository.findById(rideId)
+                .orElseThrow(() -> new NotFoundException("호출을 찾을 수 없습니다."));
+        if (!ride.isPassenger(loginUser.id())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "호출한 승객만 취소할 수 있습니다.");
+        }
+        ride.cancel();
+        activePassengerRideRepository.deleteByRideId(ride.getId());
+        activeAssignmentRepository.deleteByRideId(ride.getId());
+        return flushAndRespond(ride);
+    }
+
     private Ride findAssignedRide(LoginUser loginUser, Long rideId) {
         loginUser.requireRole(UserRole.DRIVER);
         Ride ride = rideRepository.findById(rideId)
