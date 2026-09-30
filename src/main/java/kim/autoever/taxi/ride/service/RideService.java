@@ -13,6 +13,7 @@ import kim.autoever.taxi.ride.domain.RideStatus;
 import kim.autoever.taxi.ride.dto.CurrentRideResponse;
 import kim.autoever.taxi.ride.dto.RideCreateRequest;
 import kim.autoever.taxi.ride.dto.RideResponse;
+import kim.autoever.taxi.ride.dto.RideStatusResponse;
 import kim.autoever.taxi.ride.repository.ActiveAssignmentRepository;
 import kim.autoever.taxi.ride.repository.ActivePassengerRideRepository;
 import kim.autoever.taxi.ride.repository.RideRepository;
@@ -58,6 +59,45 @@ public class RideService {
         activeAssignmentRepository.save(ActiveAssignment.create(driver, ride));
         rideRepository.flush();
         return RideResponse.from(ride);
+    }
+
+    @Transactional
+    public RideStatusResponse arrive(LoginUser loginUser, Long rideId) {
+        Ride ride = findAssignedRide(loginUser, rideId);
+        ride.arrive();
+        return flushAndRespond(ride);
+    }
+
+    @Transactional
+    public RideStatusResponse start(LoginUser loginUser, Long rideId) {
+        Ride ride = findAssignedRide(loginUser, rideId);
+        ride.start();
+        return flushAndRespond(ride);
+    }
+
+    /** 운행 완료 시 승객·기사의 활성 정보를 같은 트랜잭션에서 해제한다. */
+    @Transactional
+    public RideStatusResponse complete(LoginUser loginUser, Long rideId) {
+        Ride ride = findAssignedRide(loginUser, rideId);
+        ride.complete();
+        activePassengerRideRepository.deleteByRideId(ride.getId());
+        activeAssignmentRepository.deleteByRideId(ride.getId());
+        return flushAndRespond(ride);
+    }
+
+    private Ride findAssignedRide(LoginUser loginUser, Long rideId) {
+        loginUser.requireRole(UserRole.DRIVER);
+        Ride ride = rideRepository.findById(rideId)
+                .orElseThrow(() -> new NotFoundException("호출을 찾을 수 없습니다."));
+        if (!ride.isAssignedDriver(loginUser.id())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "배정된 기사만 운행 상태를 변경할 수 있습니다.");
+        }
+        return ride;
+    }
+
+    private RideStatusResponse flushAndRespond(Ride ride) {
+        rideRepository.flush();
+        return RideStatusResponse.from(ride);
     }
 
     @Transactional
