@@ -66,6 +66,11 @@ public class RideController {
         return rideService.complete(loginUser, rideId);
     }
 
+    @PostMapping("/{rideId}/cancel")
+    public RideStatusResponse cancel(@CurrentUser LoginUser loginUser, @PathVariable Long rideId) {
+        return rideService.cancel(loginUser, rideId);
+    }
+
     @GetMapping
     public List<RideResponse> list(@CurrentUser LoginUser loginUser,
                                    @RequestParam(defaultValue = "SEARCHING") RideStatus status) {
