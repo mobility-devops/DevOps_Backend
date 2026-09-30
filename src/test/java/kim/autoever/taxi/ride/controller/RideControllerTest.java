@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.http.MediaType;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -272,6 +273,17 @@ class RideControllerTest {
         login(2L, UserRole.DRIVER);
         when(rideService.accept(any(), eq(5L)))
                 .thenThrow(new ObjectOptimisticLockingFailureException(Ride.class, 5L));
+
+        mockMvc.perform(post("/api/v1/rides/5/accept").header("X-User-Id", "2"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"));
+    }
+
+    @Test
+    void 데드락이_발생해도_409를_반환한다() throws Exception {
+        login(2L, UserRole.DRIVER);
+        when(rideService.accept(any(), eq(5L)))
+                .thenThrow(new CannotAcquireLockException("Deadlock found when trying to get lock"));
 
         mockMvc.perform(post("/api/v1/rides/5/accept").header("X-User-Id", "2"))
                 .andExpect(status().isConflict())
