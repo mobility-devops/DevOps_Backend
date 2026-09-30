@@ -10,6 +10,7 @@ import kim.autoever.taxi.ride.domain.RideStatus;
 import kim.autoever.taxi.ride.dto.CurrentRideResponse;
 import kim.autoever.taxi.ride.dto.LocationResponse;
 import kim.autoever.taxi.ride.dto.RideResponse;
+import kim.autoever.taxi.ride.dto.RideStatusResponse;
 import kim.autoever.taxi.ride.service.RideService;
 import kim.autoever.taxi.user.auth.CurrentUserArgumentResolver;
 import kim.autoever.taxi.user.domain.User;
@@ -292,6 +293,65 @@ class RideControllerTest {
         when(rideService.accept(any(), eq(5L))).thenThrow(new NotFoundException("호출을 찾을 수 없습니다."));
 
         mockMvc.perform(post("/api/v1/rides/5/accept").header("X-User-Id", "2"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void 도착_처리하면_ARRIVED_상태를_반환한다() throws Exception {
+        login(2L, UserRole.DRIVER);
+        when(rideService.arrive(any(), eq(5L))).thenReturn(new RideStatusResponse(5L, RideStatus.ARRIVED, 2L));
+
+        mockMvc.perform(post("/api/v1/rides/5/arrive").header("X-User-Id", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rideId").value(5))
+                .andExpect(jsonPath("$.status").value("ARRIVED"))
+                .andExpect(jsonPath("$.version").value(2));
+    }
+
+    @Test
+    void 운행을_시작하면_IN_PROGRESS_상태를_반환한다() throws Exception {
+        login(2L, UserRole.DRIVER);
+        when(rideService.start(any(), eq(5L))).thenReturn(new RideStatusResponse(5L, RideStatus.IN_PROGRESS, 3L));
+
+        mockMvc.perform(post("/api/v1/rides/5/start").header("X-User-Id", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+    }
+
+    @Test
+    void 운행을_완료하면_COMPLETED_상태를_반환한다() throws Exception {
+        login(2L, UserRole.DRIVER);
+        when(rideService.complete(any(), eq(5L))).thenReturn(new RideStatusResponse(5L, RideStatus.COMPLETED, 4L));
+
+        mockMvc.perform(post("/api/v1/rides/5/complete").header("X-User-Id", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+    }
+
+    @Test
+    void 잘못된_상태_전환이면_409를_반환한다() throws Exception {
+        login(2L, UserRole.DRIVER);
+        when(rideService.start(any(), eq(5L))).thenThrow(new BusinessException(ErrorCode.CONFLICT));
+
+        mockMvc.perform(post("/api/v1/rides/5/start").header("X-User-Id", "2"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void 배정되지_않은_기사가_요청하면_403을_반환한다() throws Exception {
+        login(2L, UserRole.DRIVER);
+        when(rideService.arrive(any(), eq(5L))).thenThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+        mockMvc.perform(post("/api/v1/rides/5/arrive").header("X-User-Id", "2"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void 없는_호출의_운행_상태를_변경하면_404를_반환한다() throws Exception {
+        login(2L, UserRole.DRIVER);
+        when(rideService.complete(any(), eq(5L))).thenThrow(new NotFoundException("호출을 찾을 수 없습니다."));
+
+        mockMvc.perform(post("/api/v1/rides/5/complete").header("X-User-Id", "2"))
                 .andExpect(status().isNotFound());
     }
 }
