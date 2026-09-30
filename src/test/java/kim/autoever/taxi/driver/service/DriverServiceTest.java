@@ -7,6 +7,7 @@ import kim.autoever.taxi.driver.domain.DriverAvailability;
 import kim.autoever.taxi.driver.dto.DriverAvailabilityRequest;
 import kim.autoever.taxi.driver.dto.DriverResponse;
 import kim.autoever.taxi.driver.repository.DriverRepository;
+import kim.autoever.taxi.ride.repository.ActiveAssignmentRepository;
 import kim.autoever.taxi.user.auth.LoginUser;
 import kim.autoever.taxi.user.domain.User;
 import kim.autoever.taxi.user.domain.UserRole;
@@ -34,6 +35,9 @@ class DriverServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private ActiveAssignmentRepository activeAssignmentRepository;
 
     @InjectMocks
     private DriverService driverService;
@@ -68,6 +72,38 @@ class DriverServiceTest {
 
         assertThat(response.availability()).isEqualTo(DriverAvailability.ONLINE);
         verify(driverRepository).flush();
+    }
+
+    @Test
+    void 운행_중인_기사가_OFFLINE으로_변경하면_409_예외가_발생한다() {
+        LoginUser loginUser = new LoginUser(1L, UserRole.DRIVER);
+        Driver driver = Driver.create(driverUser());
+        ReflectionTestUtils.setField(driver, "id", 10L);
+        driver.changeAvailability(DriverAvailability.ONLINE);
+        when(driverRepository.findByUserId(1L)).thenReturn(Optional.of(driver));
+        when(activeAssignmentRepository.existsByDriverId(10L)).thenReturn(true);
+
+        assertThatThrownBy(() -> driverService.changeAvailability(
+                loginUser, new DriverAvailabilityRequest(DriverAvailability.OFFLINE)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.CONFLICT);
+        assertThat(driver.getAvailability()).isEqualTo(DriverAvailability.ONLINE);
+    }
+
+    @Test
+    void 운행_중이_아닌_기사는_OFFLINE으로_변경할_수_있다() {
+        LoginUser loginUser = new LoginUser(1L, UserRole.DRIVER);
+        Driver driver = Driver.create(driverUser());
+        ReflectionTestUtils.setField(driver, "id", 10L);
+        driver.changeAvailability(DriverAvailability.ONLINE);
+        when(driverRepository.findByUserId(1L)).thenReturn(Optional.of(driver));
+        when(activeAssignmentRepository.existsByDriverId(10L)).thenReturn(false);
+
+        DriverResponse response = driverService.changeAvailability(
+                loginUser, new DriverAvailabilityRequest(DriverAvailability.OFFLINE));
+
+        assertThat(response.availability()).isEqualTo(DriverAvailability.OFFLINE);
     }
 
     @Test

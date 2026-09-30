@@ -1,10 +1,14 @@
 package kim.autoever.taxi.driver.service;
 
+import kim.autoever.taxi.common.exception.BusinessException;
+import kim.autoever.taxi.common.exception.ErrorCode;
 import kim.autoever.taxi.common.exception.NotFoundException;
 import kim.autoever.taxi.driver.domain.Driver;
+import kim.autoever.taxi.driver.domain.DriverAvailability;
 import kim.autoever.taxi.driver.dto.DriverAvailabilityRequest;
 import kim.autoever.taxi.driver.dto.DriverResponse;
 import kim.autoever.taxi.driver.repository.DriverRepository;
+import kim.autoever.taxi.ride.repository.ActiveAssignmentRepository;
 import kim.autoever.taxi.user.auth.LoginUser;
 import kim.autoever.taxi.user.domain.User;
 import kim.autoever.taxi.user.domain.UserRole;
@@ -20,6 +24,7 @@ public class DriverService {
 
     private final DriverRepository driverRepository;
     private final UserRepository userRepository;
+    private final ActiveAssignmentRepository activeAssignmentRepository;
 
     @Transactional
     public DriverResponse getMe(LoginUser loginUser) {
@@ -29,6 +34,10 @@ public class DriverService {
     @Transactional
     public DriverResponse changeAvailability(LoginUser loginUser, DriverAvailabilityRequest request) {
         Driver driver = getOrCreate(loginUser);
+        if (request.availability() == DriverAvailability.OFFLINE
+                && activeAssignmentRepository.existsByDriverId(driver.getId())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "운행 중에는 OFFLINE으로 변경할 수 없습니다.");
+        }
         driver.changeAvailability(request.availability());
         driverRepository.flush();
         return DriverResponse.from(driver);

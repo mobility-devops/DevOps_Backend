@@ -16,6 +16,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import kim.autoever.taxi.common.domain.BaseEntity;
+import kim.autoever.taxi.common.exception.BusinessException;
+import kim.autoever.taxi.common.exception.ErrorCode;
 import kim.autoever.taxi.driver.domain.Driver;
 import kim.autoever.taxi.user.domain.User;
 import lombok.AccessLevel;
@@ -83,6 +85,15 @@ public class Ride extends BaseEntity {
 
     public static Ride create(User passenger, Location pickup, Location destination) {
         return new Ride(passenger, pickup, destination);
+    }
+
+    /** SEARCHING → ASSIGNED. 기사를 배정한다. */
+    public void accept(Driver driver) {
+        if (status != RideStatus.SEARCHING) {
+            throw new BusinessException(ErrorCode.CONFLICT, "이미 수락되었거나 취소된 호출입니다.");
+        }
+        this.driver = driver;
+        this.status = RideStatus.ASSIGNED;
     }
 
     /** 호출한 승객이거나 배정된 기사인지 확인한다. */

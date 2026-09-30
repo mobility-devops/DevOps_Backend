@@ -3,12 +3,17 @@ package kim.autoever.taxi.ride.service;
 import kim.autoever.taxi.common.exception.BusinessException;
 import kim.autoever.taxi.common.exception.ErrorCode;
 import kim.autoever.taxi.common.exception.NotFoundException;
+import kim.autoever.taxi.driver.domain.Driver;
+import kim.autoever.taxi.driver.domain.DriverAvailability;
+import kim.autoever.taxi.driver.service.DriverService;
+import kim.autoever.taxi.ride.domain.ActiveAssignment;
 import kim.autoever.taxi.ride.domain.ActivePassengerRide;
 import kim.autoever.taxi.ride.domain.Ride;
 import kim.autoever.taxi.ride.domain.RideStatus;
 import kim.autoever.taxi.ride.dto.CurrentRideResponse;
 import kim.autoever.taxi.ride.dto.RideCreateRequest;
 import kim.autoever.taxi.ride.dto.RideResponse;
+import kim.autoever.taxi.ride.repository.ActiveAssignmentRepository;
 import kim.autoever.taxi.ride.repository.ActivePassengerRideRepository;
 import kim.autoever.taxi.ride.repository.RideRepository;
 import kim.autoever.taxi.user.auth.LoginUser;
@@ -28,7 +33,32 @@ public class RideService {
 
     private final RideRepository rideRepository;
     private final ActivePassengerRideRepository activePassengerRideRepository;
+    private final ActiveAssignmentRepository activeAssignmentRepository;
     private final UserRepository userRepository;
+    private final DriverService driverService;
+
+    /**
+     * 기사가 호출을 수락한다. 동시 수락은 rides.version(낙관적 락)과
+     * active_assignments UNIQUE 제약으로 막고, 둘 다 409 로 응답한다.
+     */
+    @Transactional
+    public RideResponse accept(LoginUser loginUser, Long rideId) {
+        loginUser.requireRole(UserRole.DRIVER);
+        Ride ride = rideRepository.findById(rideId)
+                .orElseThrow(() -> new NotFoundException("호출을 찾을 수 없습니다."));
+        Driver driver = driverService.getOrCreate(loginUser);
+        if (driver.getAvailability() != DriverAvailability.ONLINE) {
+            throw new BusinessException(ErrorCode.CONFLICT, "ONLINE 상태의 기사만 호출을 수락할 수 있습니다.");
+        }
+        if (activeAssignmentRepository.existsByDriverId(driver.getId())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "이미 진행 중인 운행이 있습니다.");
+        }
+
+        ride.accept(driver);
+        activeAssignmentRepository.save(ActiveAssignment.create(driver, ride));
+        rideRepository.flush();
+        return RideResponse.from(ride);
+    }
 
     @Transactional
     public RideResponse create(LoginUser loginUser, RideCreateRequest request) {

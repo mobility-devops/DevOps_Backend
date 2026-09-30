@@ -5,6 +5,7 @@ import kim.autoever.taxi.common.exception.ErrorCode;
 import kim.autoever.taxi.common.exception.GlobalExceptionHandler;
 import kim.autoever.taxi.common.exception.NotFoundException;
 import kim.autoever.taxi.common.exception.RequestIdFilter;
+import kim.autoever.taxi.ride.domain.Ride;
 import kim.autoever.taxi.ride.domain.RideStatus;
 import kim.autoever.taxi.ride.dto.CurrentRideResponse;
 import kim.autoever.taxi.ride.dto.LocationResponse;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -237,5 +239,59 @@ class RideControllerTest {
 
         mockMvc.perform(get("/api/v1/rides").param("status", "UNKNOWN").header("X-User-Id", "2"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 호출을_수락하면_ASSIGNED_상태를_반환한다() throws Exception {
+        login(2L, UserRole.DRIVER);
+        Instant now = Instant.parse("2026-09-30T00:00:00Z");
+        when(rideService.accept(any(), eq(5L))).thenReturn(new RideResponse(5L, 1L, 10L, RideStatus.ASSIGNED,
+                new LocationResponse(new BigDecimal("37.5665"), new BigDecimal("126.9780"), "서울시청"),
+                new LocationResponse(new BigDecimal("37.4979"), new BigDecimal("127.0276"), null),
+                now, now));
+
+        mockMvc.perform(post("/api/v1/rides/5/accept").header("X-User-Id", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ASSIGNED"))
+                .andExpect(jsonPath("$.driverId").value(10));
+    }
+
+    @Test
+    void 이미_수락된_호출이면_409를_반환한다() throws Exception {
+        login(2L, UserRole.DRIVER);
+        when(rideService.accept(any(), eq(5L))).thenThrow(new BusinessException(ErrorCode.CONFLICT));
+
+        mockMvc.perform(post("/api/v1/rides/5/accept").header("X-User-Id", "2"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"));
+    }
+
+    @Test
+    void 낙관적_락_충돌이면_409를_반환한다() throws Exception {
+        login(2L, UserRole.DRIVER);
+        when(rideService.accept(any(), eq(5L)))
+                .thenThrow(new ObjectOptimisticLockingFailureException(Ride.class, 5L));
+
+        mockMvc.perform(post("/api/v1/rides/5/accept").header("X-User-Id", "2"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"));
+    }
+
+    @Test
+    void 승객이_수락하면_403을_반환한다() throws Exception {
+        login(1L, UserRole.PASSENGER);
+        when(rideService.accept(any(), eq(5L))).thenThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+        mockMvc.perform(post("/api/v1/rides/5/accept").header("X-User-Id", "1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void 없는_호출을_수락하면_404를_반환한다() throws Exception {
+        login(2L, UserRole.DRIVER);
+        when(rideService.accept(any(), eq(5L))).thenThrow(new NotFoundException("호출을 찾을 수 없습니다."));
+
+        mockMvc.perform(post("/api/v1/rides/5/accept").header("X-User-Id", "2"))
+                .andExpect(status().isNotFound());
     }
 }

@@ -45,6 +45,11 @@ public class RideController {
         return rideService.get(loginUser, rideId);
     }
 
+    @PostMapping("/{rideId}/accept")
+    public RideResponse accept(@CurrentUser LoginUser loginUser, @PathVariable Long rideId) {
+        return rideService.accept(loginUser, rideId);
+    }
+
     @GetMapping
     public List<RideResponse> list(@CurrentUser LoginUser loginUser,
                                    @RequestParam(defaultValue = "SEARCHING") RideStatus status) {

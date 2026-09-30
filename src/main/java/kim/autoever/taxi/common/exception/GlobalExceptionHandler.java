@@ -15,6 +15,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 
 import java.util.List;
 
@@ -45,6 +46,12 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ErrorResponse> handleBadRequest(Exception e) {
         return build(ErrorCode.INVALID_INPUT, ErrorCode.INVALID_INPUT.getMessage(), null);
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLock(OptimisticLockingFailureException e) {
+        log.warn("Optimistic lock failure: {}", e.getMessage());
+        return build(ErrorCode.CONFLICT, ErrorCode.CONFLICT.getMessage(), null);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
