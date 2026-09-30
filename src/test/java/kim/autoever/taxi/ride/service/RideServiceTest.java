@@ -363,6 +363,91 @@ class RideServiceTest {
     }
 
     @Test
+    void 대기_중인_호출을_취소하면_CANCELLED_상태가_되고_활성_정보가_해제된다() {
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(ride(5L)));
+
+        RideStatusResponse response = rideService.cancel(passengerLogin, 5L);
+
+        assertThat(response.rideId()).isEqualTo(5L);
+        assertThat(response.status()).isEqualTo(RideStatus.CANCELLED);
+        verify(activePassengerRideRepository).deleteByRideId(5L);
+        verify(activeAssignmentRepository).deleteByRideId(5L);
+        verify(rideRepository).flush();
+    }
+
+    @Test
+    void 배정된_호출을_취소하면_CANCELLED_상태가_된다() {
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(assignedRide(5L)));
+
+        assertThat(rideService.cancel(passengerLogin, 5L).status()).isEqualTo(RideStatus.CANCELLED);
+        verify(activeAssignmentRepository).deleteByRideId(5L);
+    }
+
+    @Test
+    void 기사가_도착한_호출도_취소할_수_있다() {
+        Ride ride = assignedRide(5L);
+        ride.arrive();
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(ride));
+
+        assertThat(rideService.cancel(passengerLogin, 5L).status()).isEqualTo(RideStatus.CANCELLED);
+    }
+
+    @Test
+    void 운행_중인_호출을_취소하면_409_예외가_발생한다() {
+        Ride ride = assignedRide(5L);
+        ride.arrive();
+        ride.start();
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(ride));
+
+        assertError(() -> rideService.cancel(passengerLogin, 5L), ErrorCode.CONFLICT);
+        verify(activePassengerRideRepository, never()).deleteByRideId(any());
+        verify(activeAssignmentRepository, never()).deleteByRideId(any());
+    }
+
+    @Test
+    void 완료된_호출을_취소하면_409_예외가_발생한다() {
+        Ride ride = assignedRide(5L);
+        ride.arrive();
+        ride.start();
+        ride.complete();
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(ride));
+
+        assertError(() -> rideService.cancel(passengerLogin, 5L), ErrorCode.CONFLICT);
+    }
+
+    @Test
+    void 이미_취소된_호출을_취소하면_409_예외가_발생한다() {
+        Ride ride = ride(5L);
+        ride.cancel();
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(ride));
+
+        assertError(() -> rideService.cancel(passengerLogin, 5L), ErrorCode.CONFLICT);
+        verify(activePassengerRideRepository, never()).deleteByRideId(any());
+    }
+
+    @Test
+    void 다른_승객이_취소하면_403_예외가_발생한다() {
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(ride(5L)));
+
+        assertError(() -> rideService.cancel(new LoginUser(99L, UserRole.PASSENGER), 5L), ErrorCode.FORBIDDEN);
+        verify(activePassengerRideRepository, never()).deleteByRideId(any());
+    }
+
+    @Test
+    void 기사가_취소하면_403_예외가_발생한다() {
+        assertError(() -> rideService.cancel(driverLogin, 5L), ErrorCode.FORBIDDEN);
+        verify(rideRepository, never()).findById(any());
+    }
+
+    @Test
+    void 없는_호출을_취소하면_404_예외가_발생한다() {
+        when(rideRepository.findById(5L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> rideService.cancel(passengerLogin, 5L))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
     void 없는_호출의_운행_상태를_변경하면_404_예외가_발생한다() {
         when(rideRepository.findById(5L)).thenReturn(Optional.empty());
 

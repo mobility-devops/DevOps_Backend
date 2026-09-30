@@ -111,12 +111,25 @@ public class Ride extends BaseEntity {
         transition(RideStatus.IN_PROGRESS, RideStatus.COMPLETED);
     }
 
+    /** SEARCHING, ASSIGNED, ARRIVED → CANCELLED. 탑승(IN_PROGRESS) 이후에는 취소할 수 없다. */
+    public void cancel() {
+        if (status != RideStatus.SEARCHING && status != RideStatus.ASSIGNED && status != RideStatus.ARRIVED) {
+            throw new BusinessException(ErrorCode.CONFLICT, status + " 상태의 호출은 취소할 수 없습니다.");
+        }
+        this.status = RideStatus.CANCELLED;
+    }
+
     private void transition(RideStatus expected, RideStatus next) {
         if (status != expected) {
             throw new BusinessException(ErrorCode.CONFLICT,
                     status + " 상태에서는 " + next + "(으)로 변경할 수 없습니다.");
         }
         this.status = next;
+    }
+
+    /** 이 호출을 요청한 승객인지 확인한다. */
+    public boolean isPassenger(Long userId) {
+        return passenger.getId().equals(userId);
     }
 
     /** 이 호출에 배정된 기사인지 확인한다. */
