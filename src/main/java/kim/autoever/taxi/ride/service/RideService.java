@@ -56,8 +56,10 @@ public class RideService {
         }
 
         ride.accept(driver);
-        activeAssignmentRepository.save(ActiveAssignment.create(driver, ride));
+        // 배정 정보(active_assignments)보다 호출(rides) 변경을 먼저 반영한다.
+        // 순서가 반대면 동시 수락 시 rides 행의 FK 공유 락과 갱신 락이 교착(deadlock)한다.
         rideRepository.flush();
+        activeAssignmentRepository.save(ActiveAssignment.create(driver, ride));
         return RideResponse.from(ride);
     }
 
