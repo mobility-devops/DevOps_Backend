@@ -96,11 +96,36 @@ public class Ride extends BaseEntity {
         this.status = RideStatus.ASSIGNED;
     }
 
+    /** ASSIGNED → ARRIVED. 기사가 출발지에 도착했다. */
+    public void arrive() {
+        transition(RideStatus.ASSIGNED, RideStatus.ARRIVED);
+    }
+
+    /** ARRIVED → IN_PROGRESS. 운행을 시작한다. */
+    public void start() {
+        transition(RideStatus.ARRIVED, RideStatus.IN_PROGRESS);
+    }
+
+    /** IN_PROGRESS → COMPLETED. 운행을 완료한다. */
+    public void complete() {
+        transition(RideStatus.IN_PROGRESS, RideStatus.COMPLETED);
+    }
+
+    private void transition(RideStatus expected, RideStatus next) {
+        if (status != expected) {
+            throw new BusinessException(ErrorCode.CONFLICT,
+                    status + " 상태에서는 " + next + "(으)로 변경할 수 없습니다.");
+        }
+        this.status = next;
+    }
+
+    /** 이 호출에 배정된 기사인지 확인한다. */
+    public boolean isAssignedDriver(Long userId) {
+        return driver != null && driver.getUser().getId().equals(userId);
+    }
+
     /** 호출한 승객이거나 배정된 기사인지 확인한다. */
     public boolean isParticipant(Long userId) {
-        if (passenger.getId().equals(userId)) {
-            return true;
-        }
-        return driver != null && driver.getUser().getId().equals(userId);
+        return passenger.getId().equals(userId) || isAssignedDriver(userId);
     }
 }

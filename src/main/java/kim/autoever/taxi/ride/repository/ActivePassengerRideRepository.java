@@ -10,4 +10,6 @@ public interface ActivePassengerRideRepository extends JpaRepository<ActivePasse
     boolean existsByPassengerId(Long passengerId);
 
     Optional<ActivePassengerRide> findByPassengerId(Long passengerId);
+
+    void deleteByRideId(Long rideId);
 }
