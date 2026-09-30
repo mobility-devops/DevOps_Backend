@@ -347,6 +347,44 @@ class RideControllerTest {
     }
 
     @Test
+    void 호출을_취소하면_CANCELLED_상태를_반환한다() throws Exception {
+        login(1L, UserRole.PASSENGER);
+        when(rideService.cancel(any(), eq(5L))).thenReturn(new RideStatusResponse(5L, RideStatus.CANCELLED, 2L));
+
+        mockMvc.perform(post("/api/v1/rides/5/cancel").header("X-User-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rideId").value(5))
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+    }
+
+    @Test
+    void 취소할_수_없는_상태이면_409를_반환한다() throws Exception {
+        login(1L, UserRole.PASSENGER);
+        when(rideService.cancel(any(), eq(5L))).thenThrow(new BusinessException(ErrorCode.CONFLICT));
+
+        mockMvc.perform(post("/api/v1/rides/5/cancel").header("X-User-Id", "1"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void 다른_승객이_취소하면_403을_반환한다() throws Exception {
+        login(1L, UserRole.PASSENGER);
+        when(rideService.cancel(any(), eq(5L))).thenThrow(new BusinessException(ErrorCode.FORBIDDEN));
+
+        mockMvc.perform(post("/api/v1/rides/5/cancel").header("X-User-Id", "1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void 없는_호출을_취소하면_404를_반환한다() throws Exception {
+        login(1L, UserRole.PASSENGER);
+        when(rideService.cancel(any(), eq(5L))).thenThrow(new NotFoundException("호출을 찾을 수 없습니다."));
+
+        mockMvc.perform(post("/api/v1/rides/5/cancel").header("X-User-Id", "1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void 없는_호출의_운행_상태를_변경하면_404를_반환한다() throws Exception {
         login(2L, UserRole.DRIVER);
         when(rideService.complete(any(), eq(5L))).thenThrow(new NotFoundException("호출을 찾을 수 없습니다."));
