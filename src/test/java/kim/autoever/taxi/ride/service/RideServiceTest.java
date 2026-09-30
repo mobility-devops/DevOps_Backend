@@ -15,6 +15,7 @@ import kim.autoever.taxi.ride.dto.CurrentRideResponse;
 import kim.autoever.taxi.ride.dto.LocationRequest;
 import kim.autoever.taxi.ride.dto.RideCreateRequest;
 import kim.autoever.taxi.ride.dto.RideResponse;
+import kim.autoever.taxi.ride.dto.RideStatusResponse;
 import kim.autoever.taxi.ride.repository.ActiveAssignmentRepository;
 import kim.autoever.taxi.ride.repository.ActivePassengerRideRepository;
 import kim.autoever.taxi.ride.repository.RideRepository;
@@ -266,6 +267,106 @@ class RideServiceTest {
         when(rideRepository.findById(5L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> rideService.accept(driverLogin, 5L))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    private Ride assignedRide(long id) {
+        Ride ride = ride(id);
+        ride.accept(driver);
+        return ride;
+    }
+
+    @Test
+    void 도착_처리하면_ARRIVED_상태가_된다() {
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(assignedRide(5L)));
+
+        RideStatusResponse response = rideService.arrive(driverLogin, 5L);
+
+        assertThat(response.rideId()).isEqualTo(5L);
+        assertThat(response.status()).isEqualTo(RideStatus.ARRIVED);
+        verify(rideRepository).flush();
+    }
+
+    @Test
+    void 운행을_시작하면_IN_PROGRESS_상태가_된다() {
+        Ride ride = assignedRide(5L);
+        ride.arrive();
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(ride));
+
+        assertThat(rideService.start(driverLogin, 5L).status()).isEqualTo(RideStatus.IN_PROGRESS);
+    }
+
+    @Test
+    void 운행을_완료하면_COMPLETED_상태가_되고_활성_정보가_해제된다() {
+        Ride ride = assignedRide(5L);
+        ride.arrive();
+        ride.start();
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(ride));
+
+        RideStatusResponse response = rideService.complete(driverLogin, 5L);
+
+        assertThat(response.status()).isEqualTo(RideStatus.COMPLETED);
+        verify(activePassengerRideRepository).deleteByRideId(5L);
+        verify(activeAssignmentRepository).deleteByRideId(5L);
+    }
+
+    @Test
+    void 순서를_건너뛰면_409_예외가_발생한다() {
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(assignedRide(5L)));
+
+        assertError(() -> rideService.start(driverLogin, 5L), ErrorCode.CONFLICT);
+        assertError(() -> rideService.complete(driverLogin, 5L), ErrorCode.CONFLICT);
+        verify(activePassengerRideRepository, never()).deleteByRideId(any());
+        verify(activeAssignmentRepository, never()).deleteByRideId(any());
+    }
+
+    @Test
+    void 되돌리는_요청은_409_예외가_발생한다() {
+        Ride ride = assignedRide(5L);
+        ride.arrive();
+        ride.start();
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(ride));
+
+        assertError(() -> rideService.arrive(driverLogin, 5L), ErrorCode.CONFLICT);
+    }
+
+    @Test
+    void 이미_완료된_호출을_다시_완료하면_409_예외가_발생한다() {
+        Ride ride = assignedRide(5L);
+        ride.arrive();
+        ride.start();
+        ride.complete();
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(ride));
+
+        assertError(() -> rideService.complete(driverLogin, 5L), ErrorCode.CONFLICT);
+        verify(activeAssignmentRepository, never()).deleteByRideId(any());
+    }
+
+    @Test
+    void 배정되지_않은_기사가_변경하면_403_예외가_발생한다() {
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(assignedRide(5L)));
+
+        assertError(() -> rideService.arrive(new LoginUser(3L, UserRole.DRIVER), 5L), ErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    void 기사가_배정되지_않은_호출을_변경하면_403_예외가_발생한다() {
+        when(rideRepository.findById(5L)).thenReturn(Optional.of(ride(5L)));
+
+        assertError(() -> rideService.arrive(driverLogin, 5L), ErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    void 승객이_운행_상태를_변경하면_403_예외가_발생한다() {
+        assertError(() -> rideService.arrive(passengerLogin, 5L), ErrorCode.FORBIDDEN);
+        verify(rideRepository, never()).findById(any());
+    }
+
+    @Test
+    void 없는_호출의_운행_상태를_변경하면_404_예외가_발생한다() {
+        when(rideRepository.findById(5L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> rideService.complete(driverLogin, 5L))
                 .isInstanceOf(NotFoundException.class);
     }
 }

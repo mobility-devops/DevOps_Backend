@@ -5,6 +5,7 @@ import kim.autoever.taxi.ride.domain.RideStatus;
 import kim.autoever.taxi.ride.dto.CurrentRideResponse;
 import kim.autoever.taxi.ride.dto.RideCreateRequest;
 import kim.autoever.taxi.ride.dto.RideResponse;
+import kim.autoever.taxi.ride.dto.RideStatusResponse;
 import kim.autoever.taxi.ride.service.RideService;
 import kim.autoever.taxi.user.auth.CurrentUser;
 import kim.autoever.taxi.user.auth.LoginUser;
@@ -48,6 +49,21 @@ public class RideController {
     @PostMapping("/{rideId}/accept")
     public RideResponse accept(@CurrentUser LoginUser loginUser, @PathVariable Long rideId) {
         return rideService.accept(loginUser, rideId);
+    }
+
+    @PostMapping("/{rideId}/arrive")
+    public RideStatusResponse arrive(@CurrentUser LoginUser loginUser, @PathVariable Long rideId) {
+        return rideService.arrive(loginUser, rideId);
+    }
+
+    @PostMapping("/{rideId}/start")
+    public RideStatusResponse start(@CurrentUser LoginUser loginUser, @PathVariable Long rideId) {
+        return rideService.start(loginUser, rideId);
+    }
+
+    @PostMapping("/{rideId}/complete")
+    public RideStatusResponse complete(@CurrentUser LoginUser loginUser, @PathVariable Long rideId) {
+        return rideService.complete(loginUser, rideId);
     }
 
     @GetMapping
