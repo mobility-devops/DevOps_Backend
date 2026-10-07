@@ -18,14 +18,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import kim.autoever.taxi.TestcontainersConfiguration;
+import org.springframework.context.annotation.Import;
 
 /**
- * 실제 MySQL(taxi_test)을 사용하는 통합 테스트 공통 설정.
+ * Testcontainers 로 띄운 MySQL 8.4 를 사용하는 통합 테스트 공통 설정.
  * 매 테스트 전에 모든 테이블을 비운다. Flyway 마이그레이션은 컨텍스트 시작 시 적용된다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(TestcontainersConfiguration.class)
 public abstract class IntegrationTestSupport {
 
     protected static final String RIDE_BODY = """
