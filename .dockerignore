@@ -1,0 +1,12 @@
+.git
+.gradle
+.idea
+.vscode
+build
+out
+*.iml
+.env
+**/application-local.properties
+**/application-local.yml
+compose.yaml
+*.md
