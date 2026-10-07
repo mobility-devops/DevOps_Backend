@@ -44,6 +44,11 @@ dependencies {
     testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 }
 
+// 실행 가능한 bootJar 하나만 만든다. (plain jar 가 같이 생기면 Dockerfile 의 *.jar 가 두 파일을 가리킴)
+tasks.named('jar') {
+    enabled = false
+}
+
 jacoco {
     toolVersion = '0.8.15'
 }
