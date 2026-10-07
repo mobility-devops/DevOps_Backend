@@ -1,7 +1,9 @@
 plugins {
     id 'java'
+    id 'jacoco'
     id 'org.springframework.boot' version '4.1.1'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.sonarqube' version '7.5.0.8588'
 }
 
 group = 'kim.autoever'
@@ -35,8 +37,34 @@ dependencies {
     testCompileOnly 'org.projectlombok:lombok'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testAnnotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:testcontainers-mysql'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+}
+
+jacoco {
+    toolVersion = '0.8.15'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy 'jacocoTestReport'                   // 테스트가 끝나면 리포트 생성
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn 'test'
+    reports {
+        xml.required = true                          // SonarQube가 읽는 파일
+        html.required = true                         // 사람이 브라우저로 보는 용도
+    }
+}
+
+// SonarQube Cloud 분석 설정. 토큰은 여기 넣지 않고 Jenkins가 SONAR_TOKEN 환경변수로 넣는다.
+sonar {
+    properties {
+        property 'sonar.organization', 'mobility-devops'                 // SonarCloud 가입 후 확정
+        property 'sonar.projectKey', 'mobility-devops_DevOps_Backend'    // SonarCloud 가입 후 확정
+        property 'sonar.coverage.jacoco.xmlReportPaths',
+                "${layout.buildDirectory.get()}/reports/jacoco/test/jacocoTestReport.xml"
+    }
 }
