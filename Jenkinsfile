@@ -49,6 +49,7 @@ pipeline {
             environment {
                 GRADLE_USER_HOME = '/gradle-cache'
                 TESTCONTAINERS_HOST_OVERRIDE = 'localhost'
+                SONAR_USER_HOME = '/gradle-cache/sonar'
             }
             stages {
                 stage('테스트') {
