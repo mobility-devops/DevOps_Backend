@@ -75,3 +75,5 @@ sonar {
                 "${layout.buildDirectory.get()}/reports/jacoco/test/jacocoTestReport.xml"
     }
 }
+// Tomcat CRITICAL CVE 대응 (11.0.24 -> 11.0.25). Spring Boot 다음 패치로 올리면 제거
+ext['tomcat.version'] = '11.0.25'
