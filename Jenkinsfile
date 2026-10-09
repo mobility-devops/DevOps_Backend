@@ -67,7 +67,15 @@ pipeline {
                     when { anyOf { changeRequest(); branch 'develop' } }
                     steps {
                         withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                            sh './gradlew --no-daemon sonar -Dsonar.qualitygate.wait=true'
+                            // PR 인지 브랜치인지 Sonar 에 직접 알려 준다 (자동 감지가 안 돼 PR 분석이 develop 결과를 덮어씀)
+                            sh '''
+                                if [ -n "${CHANGE_ID:-}" ]; then
+                                    SONAR_ARGS="-Dsonar.pullrequest.key=$CHANGE_ID -Dsonar.pullrequest.branch=$CHANGE_BRANCH -Dsonar.pullrequest.base=$CHANGE_TARGET"
+                                else
+                                    SONAR_ARGS="-Dsonar.branch.name=$BRANCH_NAME"
+                                fi
+                                ./gradlew --no-daemon sonar -Dsonar.qualitygate.wait=true $SONAR_ARGS
+                            '''
                         }
                     }
                 }
