@@ -134,6 +134,17 @@ pipeline {
                 archiveArtifacts artifacts: 'image-digest.txt'
             }
         }
+
+        // 이미지가 GHCR 에 올라가면 GitOps dev overlay 의 digest 한 줄만 바꾸는 PR 을 만들고 자동 머지한다.
+        // dev 폴더는 CODEOWNERS 담당자가 없어 승인 없이 머지된다. prod 는 vX.Y.Z 릴리스 때 사람이 승인한다.
+        stage('GitOps dev PR') {
+            when { branch 'develop' }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'github-app', usernameVariable: 'GH_APP', passwordVariable: 'GH_TOKEN')]) {
+                    sh 'bash scripts/gitops-dev-pr.sh'
+                }
+            }
+        }
     }
 
     post {
