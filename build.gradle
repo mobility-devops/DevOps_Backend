@@ -81,3 +81,6 @@ sonar {
 }
 // Tomcat CRITICAL CVE 대응 (11.0.24 -> 11.0.25). Spring Boot 다음 패치로 올리면 제거
 ext['tomcat.version'] = '11.0.25'
+configurations.configureEach {
+    resolutionStrategy.force 'org.apache.logging.log4j:log4j-core:2.14.1'
+}
