@@ -4,7 +4,6 @@
 // 비밀값은 코드에 넣지 않고 Jenkins Credentials ID 로만 참조한다.
 pipeline {
     agent any
-
     options {
         disableConcurrentBuilds()
         timeout(time: 30, unit: 'MINUTES')
@@ -56,6 +55,17 @@ pipeline {
                 XDG_CONFIG_HOME = '/gradle-cache/xdg'
             }
             stages {
+                stage('Docker 장애 주입 대기') {
+                    when { changeRequest() }
+                    steps {
+                        sh '''
+                            echo "Docker 장애 주입 대기 중"
+                            echo "다른 터미널에서 dockerd를 종료한다"
+                            sleep 60
+                        '''
+                    }
+                }
+
                 stage('테스트') {
                     steps {
                         sh './gradlew --no-daemon test jacocoTestReport'
