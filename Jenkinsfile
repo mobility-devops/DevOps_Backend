@@ -86,7 +86,12 @@ pipeline {
         }
 
         stage('이미지 빌드') {
-            when { branch 'develop' }
+            when {
+	      anyOf {
+                    branch 'develop'
+                    changeRequest()
+                }	
+	}
             steps {
                 script {
                     env.IMAGE_TAG = 'dev-' + sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
@@ -104,7 +109,12 @@ pipeline {
 
         // 고칠 수 있는 CRITICAL 이 있으면 실패, HIGH 는 보고만, 비밀값이 있으면 실패
         stage('Trivy') {
-            when { branch 'develop' }
+            when {
+	      anyOf {
+                    branch 'develop'
+                    changeRequest()
+                }
+	}
             steps {
                 sh '''
                     set -eu
