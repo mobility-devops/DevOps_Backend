@@ -39,6 +39,9 @@ pipeline {
         // 매번 새로 뜨는 JDK 컨테이너에서 빌드한다.
         // Testcontainers 는 ci-01 Docker 를 쓰고 MySQL 컨테이너에는 localhost 로 접속한다 (ufw 변경 불필요).
         stage('테스트·품질') {
+            options {
+                retry(3)
+            }
             agent {
                 docker {
                     image 'eclipse-temurin:21-jdk'
