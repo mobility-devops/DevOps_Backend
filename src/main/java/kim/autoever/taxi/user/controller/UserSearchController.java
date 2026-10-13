@@ -19,9 +19,7 @@ public class UserSearchController {
     public List<Map<String, Object>> search(
             @RequestParam("name") String name) {
 
-        String sql =
-                "SELECT id, name FROM users WHERE name = '" + name + "'";
-
-        return jdbcTemplate.queryForList(sql);
+        String sql = "SELECT id, name FROM users WHERE name = ?";
+	return jdbcTemplate.queryForList(sql, name);
     }
 }
