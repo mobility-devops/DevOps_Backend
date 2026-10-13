@@ -58,6 +58,7 @@ pipeline {
             stages {
                 stage('테스트') {
                     steps {
+			sh './gradlew --no-daemon dependencyInsight --dependency log4j-core --configuration runtimeClasspath'
                         sh './gradlew --no-daemon test jacocoTestReport'
                     }
                     post {
