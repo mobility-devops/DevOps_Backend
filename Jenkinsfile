@@ -17,6 +17,14 @@ pipeline {
     }
 
     stages {
+        stage('CI Queue Test Delay') {
+            when { changeRequest() }
+            steps {
+                echo 'CI queue test: 60초 대기'
+                sleep time: 60, unit: 'SECONDS'
+            }
+        }
+
         // Canary 중에는 옛 버전과 새 버전이 같은 DB 를 쓰므로 확장 변경만 허용한다 (아키텍처 7장).
         // 축소 변경은 파일 이름에 __contract_ 를 넣어 검사에서 빼고 리뷰에서 확인한다.
         stage('Migration 검사') {
