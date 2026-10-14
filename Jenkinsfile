@@ -7,7 +7,7 @@ pipeline {
 
     options {
         disableConcurrentBuilds()
-        timeout(time: 30, unit: 'MINUTES')
+        timeout(time: 2, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '20'))
     }
 
@@ -17,6 +17,14 @@ pipeline {
     }
 
     stages {
+        stage('CI Timeout Test') {
+            when { changeRequest() }
+            steps {
+                echo 'CI Timeout 테스트: 180초 대기 (제한 시간 2분)'
+                sleep time: 180, unit: 'SECONDS'
+            }
+        }
+
         // Canary 중에는 옛 버전과 새 버전이 같은 DB 를 쓰므로 확장 변경만 허용한다 (아키텍처 7장).
         // 축소 변경은 파일 이름에 __contract_ 를 넣어 검사에서 빼고 리뷰에서 확인한다.
         stage('Migration 검사') {
